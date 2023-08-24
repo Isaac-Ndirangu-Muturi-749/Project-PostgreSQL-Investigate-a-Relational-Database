@@ -1,0 +1,241 @@
+SET 1 PROBLEMS
+
+QUESTION 1
+
+-- Selects film title, category name, and count of rentals
+SELECT
+    film.title AS "Film title",
+    category.name AS "Category name",
+    COUNT(rental.rental_id) AS "Count of Rentals"
+
+-- Joins film, film_category, category, inventory, and rental tables
+FROM
+    film
+JOIN
+    film_category ON film.film_id = film_category.film_id
+JOIN
+    category ON film_category.category_id = category.category_id
+JOIN
+    inventory ON film.film_id = inventory.film_id
+JOIN
+    rental ON inventory.inventory_id = rental.inventory_id
+
+-- Filters results for specific family movie categories
+WHERE
+    category.name IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music')
+
+-- Groups results by film title and category name
+GROUP BY
+    film.title, category.name
+
+-- Orders results first by category name, then by film title
+ORDER BY
+    category.name, film.title;
+
+QUESTION 2
+
+-- Create a Common Table Expression (CTE) to select family movie rental durations and their categories
+WITH FamilyRentalDurations AS (
+    SELECT
+        category.name AS "Category",
+        film.title AS "Film title",
+        film.rental_duration AS "Rental Duration"
+    FROM
+        film
+    JOIN
+        film_category ON film.film_id = film_category.film_id
+    JOIN
+        category ON film_category.category_id = category.category_id
+    WHERE
+        category.name IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music')
+),
+
+-- Create another CTE to calculate percentiles for rental durations within each category
+CategoryAverages AS (
+    SELECT
+        category.name AS "Category",
+        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY film.rental_duration) AS "25th Percentile",
+        PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY film.rental_duration) AS "50th Percentile",
+        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY film.rental_duration) AS "75th Percentile"
+    FROM
+        film
+    JOIN
+        film_category ON film.film_id = film_category.film_id
+    JOIN
+        category ON film_category.category_id = category.category_id
+    GROUP BY
+        category.name
+)
+
+-- Combine the two CTEs to generate the final table with movie titles categorized by quartiles
+SELECT
+    frd."Film title",
+    frd."Category",
+    frd."Rental Duration",
+    CASE
+        WHEN frd."Rental Duration" <= ca."25th Percentile" THEN '1'
+        WHEN frd."Rental Duration" <= ca."50th Percentile" THEN '2'
+        WHEN frd."Rental Duration" <= ca."75th Percentile" THEN '3'
+        ELSE '4'
+    END AS "Rental Duration quartile"
+FROM
+    FamilyRentalDurations frd
+JOIN
+    CategoryAverages ca ON frd."Category" = ca."Category"
+ORDER BY
+    frd."Rental Duration" ASC; -- Sort the results by duration in ascending order
+
+QUESTION 3
+
+-- Create a Common Table Expression (CTE) to select family movie rental durations and their categories
+WITH FamilyRentalDurations AS (
+    SELECT
+        category.name AS "Category",
+        film.rental_duration AS "Rental Duration"
+    FROM
+        film
+    JOIN
+        film_category ON film.film_id = film_category.film_id
+    JOIN
+        category ON film_category.category_id = category.category_id
+    WHERE
+        category.name IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music')
+),
+
+-- Create another CTE to calculate percentiles for rental durations within each category
+CategoryAverages AS (
+    SELECT
+        category.name AS "Category",
+        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY film.rental_duration) AS "25th Percentile",
+        PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY film.rental_duration) AS "50th Percentile",
+        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY film.rental_duration) AS "75th Percentile"
+    FROM
+        film
+    JOIN
+        film_category ON film.film_id = film_category.film_id
+    JOIN
+        category ON film_category.category_id = category.category_id
+    GROUP BY
+        category.name
+)
+
+-- Combine the two CTEs to generate the final table with movie counts categorized by quartiles
+SELECT
+    frd."Category" AS "Category",
+    CASE
+        WHEN frd."Rental Duration" <= ca."25th Percentile" THEN '1'
+        WHEN frd."Rental Duration" <= ca."50th Percentile" THEN '2'
+        WHEN frd."Rental Duration" <= ca."75th Percentile" THEN '3'
+        ELSE '4'
+    END AS "Rental Duration quartile",
+    COUNT(*) AS "Count"
+FROM
+    FamilyRentalDurations frd
+JOIN
+    CategoryAverages ca ON frd."Category" = ca."Category"
+GROUP BY
+    frd."Category", "Rental Duration quartile"
+ORDER BY
+    frd."Category", "Rental Duration quartile";
+
+
+
+PROBLEM SET 2
+
+QUESTION 1
+
+-- Retrieve the store ID, year, month, and the count of rental orders
+SELECT
+    EXTRACT(MONTH FROM r.rental_date) AS "Month",
+    EXTRACT(YEAR FROM r.rental_date) AS "Year",
+    c.store_id AS "Store ID",
+    COUNT(r.rental_id) AS "Count of Rental Orders"
+FROM
+    rental r
+JOIN
+    customer c ON r.customer_id = c.customer_id
+-- Group by year, month, and store ID
+GROUP BY
+    "Month", "Year", c.store_id
+-- Order by year and month in descending order
+ORDER BY
+    "Month", "Year";
+
+QUESTION 2
+
+-- Create a Common Table Expression (CTE) to get the top 10 paying customers during 2007
+WITH TopPayingCustomers AS (
+    SELECT
+        c.customer_id,
+        c.first_name || ' ' || c.last_name AS "Full Name"
+    FROM
+        payment p
+    JOIN
+        customer c ON p.customer_id = c.customer_id
+    WHERE
+        EXTRACT(YEAR FROM p.payment_date) = 2007
+    GROUP BY
+        c.customer_id, "Full Name"
+    ORDER BY
+        SUM(p.amount) DESC
+    LIMIT
+        10
+)
+-- Retrieve month, customer name, number of payments, and total payment amount
+SELECT
+    EXTRACT(MONTH FROM p.payment_date) AS "Month",
+    tpc."Full Name",
+    COUNT(p.payment_id) AS "Number of Payments in the Month",
+    SUM(p.amount) AS "Amount Paid"
+FROM
+    payment p
+-- Join with the TopPayingCustomers CTE to limit results to top paying customers
+JOIN
+    TopPayingCustomers tpc ON p.customer_id = tpc.customer_id
+WHERE
+    EXTRACT(YEAR FROM p.payment_date) = 2007
+-- Group by month and customer name
+GROUP BY
+    "Month", tpc."Full Name"
+-- Order results by customer name and month
+ORDER BY
+    tpc."Full Name", "Month";
+
+
+QUESTION 3
+
+-- Create a common table expression (CTE) to find the top 10 paying customers in 2007
+WITH TopPayingCustomers AS (
+    SELECT
+        c.customer_id,
+        c.first_name || ' ' || c.last_name AS "Full Name"
+    FROM
+        payment p
+    JOIN
+        customer c ON p.customer_id = c.customer_id
+    WHERE
+        EXTRACT(YEAR FROM p.payment_date) = 2007
+    GROUP BY
+        c.customer_id, "Full Name"
+    ORDER BY
+        SUM(p.amount) DESC
+    LIMIT
+        10
+)
+
+-- Retrieve the customer name, month, and the difference in payment amounts between successive months
+SELECT
+    tpc."Full Name",
+    EXTRACT(MONTH FROM p1.payment_date) AS "Month",
+    -- Calculate the difference in payment amounts using the LAG() window function
+    SUM(p1.amount) - LAG(SUM(p1.amount), 1) OVER (PARTITION BY tpc.customer_id ORDER BY EXTRACT(MONTH FROM p1.payment_date)) AS "Payment Difference"
+FROM
+    payment p1
+JOIN
+    TopPayingCustomers tpc ON p1.customer_id = tpc.customer_id
+WHERE
+    EXTRACT(YEAR FROM p1.payment_date) = 2007
+GROUP BY
+    tpc."Full Name", "Month", tpc.customer_id
+ORDER BY
+    tpc."Full Name", "Month";
