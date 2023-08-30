@@ -9,7 +9,7 @@ Rental length category
 Count*/
 
 
--- Create a Common Table Expression (CTE) to select family movie rental durations and their categories
+-- CTE family movie rental durations and their categories
 WITH FamilyRentalDurations AS (
     SELECT
         category.name AS "Category",
@@ -24,7 +24,7 @@ WITH FamilyRentalDurations AS (
         category.name IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music')
 ),
 
--- Create another CTE to calculate percentiles for rental durations within each category
+-- CTE percentiles for rental durations within each category
 CategoryAverages AS (
     SELECT
         category.name AS "Category",
@@ -41,7 +41,7 @@ CategoryAverages AS (
         category.name
 )
 
--- Combine the two CTEs to generate the final table with movie counts categorized by quartiles
+-- Combine CTEs final table with movie counts categorized by quartiles
 SELECT
     frd."Category" AS "Category",
     CASE

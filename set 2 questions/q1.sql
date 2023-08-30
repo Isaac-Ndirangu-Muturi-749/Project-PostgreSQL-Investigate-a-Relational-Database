@@ -7,7 +7,6 @@ orders during every month for all the years we have data for. Write a query
     of rental orders fulfilled during that month.*/
 
 
--- Retrieve the store ID, year, month, and the count of rental orders
 SELECT
     EXTRACT(MONTH FROM r.rental_date) AS "Month",
     EXTRACT(YEAR FROM r.rental_date) AS "Year",
@@ -17,9 +16,7 @@ FROM
     rental r
 JOIN
     customer c ON r.customer_id = c.customer_id
--- Group by year, month, and store ID
 GROUP BY
     "Month", "Year", c.store_id
--- Order by year and month in descending order
 ORDER BY
     "Month", "Year";

@@ -1,0 +1,159 @@
+/* VISUALIZATION 1 */ 
+
+SELECT
+    f.title AS "Film title",
+    c.name AS "Category name",
+    COUNT(r.rental_id) AS "Count of Rentals"
+FROM
+    film f
+JOIN
+    film_category fc ON f.film_id = fc.film_id
+JOIN
+    category c ON fc.category_id = c.category_id
+JOIN
+    inventory i ON f.film_id = i.film_id
+JOIN
+    rental r ON i.inventory_id = r.inventory_id
+WHERE
+    c.name IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music')
+GROUP BY
+    f.title, c.name
+ORDER BY
+    c.name, f.title;
+
+
+
+
+/* VISUALIZATION 2 */ 
+
+-- CTE family movie rental durations and their categories
+WITH FamilyRentalDurations AS (
+    SELECT
+        category.name AS "Category",
+        film.title AS "Film title",
+        film.rental_duration AS "Rental Duration"
+    FROM
+        film
+    JOIN
+        film_category ON film.film_id = film_category.film_id
+    JOIN
+        category ON film_category.category_id = category.category_id
+    WHERE
+        category.name IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music')
+),
+
+-- CTE percentiles for rental durations within each category
+CategoryAverages AS (
+    SELECT
+        category.name AS "Category",
+        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY film.rental_duration) AS "25th Percentile",
+        PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY film.rental_duration) AS "50th Percentile",
+        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY film.rental_duration) AS "75th Percentile"
+    FROM
+        film
+    JOIN
+        film_category ON film.film_id = film_category.film_id
+    JOIN
+        category ON film_category.category_id = category.category_id
+    GROUP BY
+        category.name
+)
+
+-- Combine CTEs  final table with movie titles categorized by quartiles
+SELECT
+    frd."Film title",
+    frd."Category",
+    frd."Rental Duration",
+    CASE
+        WHEN frd."Rental Duration" <= ca."25th Percentile" THEN '1'
+        WHEN frd."Rental Duration" <= ca."50th Percentile" THEN '2'
+        WHEN frd."Rental Duration" <= ca."75th Percentile" THEN '3'
+        ELSE '4'
+    END AS "Rental Duration quartile"
+FROM
+    FamilyRentalDurations frd
+JOIN
+    CategoryAverages ca ON frd."Category" = ca."Category"
+ORDER BY
+    frd."Rental Duration" ASC;
+
+
+
+
+/* VISUALIZATION 3 */ 
+
+-- CTE  top 10 paying customers during 2007
+WITH TopPayingCustomers AS (
+    SELECT
+        c.customer_id,
+        c.first_name || ' ' || c.last_name AS "Full Name"
+    FROM
+        payment p
+    JOIN
+        customer c ON p.customer_id = c.customer_id
+    WHERE
+        EXTRACT(YEAR FROM p.payment_date) = 2007
+    GROUP BY
+        c.customer_id, "Full Name"
+    ORDER BY
+        SUM(p.amount) DESC
+    LIMIT
+        10
+)
+
+SELECT
+    EXTRACT(MONTH FROM p.payment_date) AS "Month",
+    tpc."Full Name",
+    COUNT(p.payment_id) AS "Number of Payments in the Month",
+    SUM(p.amount) AS "Amount Paid"
+FROM
+    payment p
+-- Join with the TopPayingCustomers CTE
+JOIN
+    TopPayingCustomers tpc ON p.customer_id = tpc.customer_id
+WHERE
+    EXTRACT(YEAR FROM p.payment_date) = 2007
+GROUP BY
+    "Month", tpc."Full Name"
+ORDER BY
+    tpc."Full Name", "Month";
+
+
+
+
+/* VISUALIZATION 4 */ 
+
+-- CTE top 10 paying customers in 2007
+WITH TopPayingCustomers AS (
+    SELECT
+        c.customer_id,
+        c.first_name || ' ' || c.last_name AS "Full Name"
+    FROM
+        payment p
+    JOIN
+        customer c ON p.customer_id = c.customer_id
+    WHERE
+        EXTRACT(YEAR FROM p.payment_date) = 2007
+    GROUP BY
+        c.customer_id, "Full Name"
+    ORDER BY
+        SUM(p.amount) DESC
+    LIMIT
+        10
+)
+
+SELECT
+    tpc."Full Name",
+    EXTRACT(MONTH FROM p1.payment_date) AS "Month",
+    -- difference in payments using the LAG() window function
+    SUM(p1.amount) - LAG(SUM(p1.amount), 1) OVER (PARTITION BY tpc.customer_id ORDER BY EXTRACT(MONTH FROM p1.payment_date)) AS "Payment Difference"
+FROM
+    payment p1
+JOIN
+    TopPayingCustomers tpc ON p1.customer_id = tpc.customer_id
+WHERE
+    EXTRACT(YEAR FROM p1.payment_date) = 2007
+GROUP BY
+    tpc."Full Name", "Month", tpc.customer_id
+ORDER BY
+    tpc."Full Name", "Month";

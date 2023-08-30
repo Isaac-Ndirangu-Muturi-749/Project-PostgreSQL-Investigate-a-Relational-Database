@@ -7,7 +7,7 @@ the difference across their monthly payments during 2007. Please go ahead and
     in terms of payments.*/
 
 
--- Create a common table expression (CTE) to find the top 10 paying customers in 2007
+-- CTE top 10 paying customers in 2007
 WITH TopPayingCustomers AS (
     SELECT
         c.customer_id,
@@ -26,11 +26,10 @@ WITH TopPayingCustomers AS (
         10
 )
 
--- Retrieve the customer name, month, and the difference in payment amounts between successive months
 SELECT
     tpc."Full Name",
     EXTRACT(MONTH FROM p1.payment_date) AS "Month",
-    -- Calculate the difference in payment amounts using the LAG() window function
+    -- difference in payments using the LAG() window function
     SUM(p1.amount) - LAG(SUM(p1.amount), 1) OVER (PARTITION BY tpc.customer_id ORDER BY EXTRACT(MONTH FROM p1.payment_date)) AS "Payment Difference"
 FROM
     payment p1

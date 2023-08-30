@@ -7,32 +7,25 @@ Create a query that lists each movie, the film category it is classified in,
  and the number of times it has been rented out.*/
 
 
--- Selects film title, category name, and count of rentals
+
 SELECT
-    film.title AS "Film title",
-    category.name AS "Category name",
-    COUNT(rental.rental_id) AS "Count of Rentals"
-
--- Joins film, film_category, category, inventory, and rental tables
+    f.title AS "Film title",
+    c.name AS "Category name",
+    COUNT(r.rental_id) AS "Count of Rentals"
 FROM
-    film
+    film f
 JOIN
-    film_category ON film.film_id = film_category.film_id
+    film_category fc ON f.film_id = fc.film_id
 JOIN
-    category ON film_category.category_id = category.category_id
+    category c ON fc.category_id = c.category_id
 JOIN
-    inventory ON film.film_id = inventory.film_id
+    inventory i ON f.film_id = i.film_id
 JOIN
-    rental ON inventory.inventory_id = rental.inventory_id
-
--- Filters results for specific family movie categories
+    rental r ON i.inventory_id = r.inventory_id
 WHERE
-    category.name IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music')
-
--- Groups results by film title and category name
+    c.name IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music')
 GROUP BY
-    film.title, category.name
-
--- Orders results first by category name, then by film title
+    f.title, c.name
 ORDER BY
-    category.name, film.title;
+    c.name, f.title;
+
